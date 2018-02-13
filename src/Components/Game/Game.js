@@ -2,6 +2,24 @@ import React, { Component } from "react";
 import _ from "lodash";
 import './Game.css';
 
+const possibleCombinationSum = function(arr, n) {
+  if (arr.indexOf(n) >= 0) { return true; }
+  if (arr[0] > n) { return false; }
+  if (arr[arr.length - 1] > n) {
+    arr.pop();
+    return possibleCombinationSum(arr, n);
+  }
+  var listSize = arr.length, combinationsCount = (1 << listSize)
+  for (var i = 1; i < combinationsCount ; i++ ) {
+    var combinationSum = 0;
+    for (var j=0 ; j < listSize ; j++) {
+      if (i & (1 << j)) { combinationSum += arr[j]; }
+    }
+    if (n === combinationSum) { return true; }
+  }
+  return false;
+};
+
 const Stars = props => {
   return (
     <div className="col-5">
@@ -81,14 +99,37 @@ const Numbers = props => {
 };
 Numbers.list = _.range(1, 10);
 
+const DoneFrame = props => {
+	return(
+  	<div className="text-center">
+    	<h2>{props.doneStatus}</h2>
+      <button className="btn btn-secondary" onClick={props.resetGame}>
+      	Play again
+      </button>
+    </div>
+  )
+};
+
 class Game extends Component {
-  state = {
+	static randomNumber = () => 1 + Math.floor(Math.random() * 9);
+  static initialState = () => ({
     selectedNumbers: [],
-    randomNumberOfStars: 1 + Math.floor(Math.random() * 9),
+    randomNumberOfStars: Game.randomNumber(),
     usedNumbers: [],
     answerIsCorrect: null,
     redraws: 5,
+    doneStatus: null
+  });
+  state = {
+    selectedNumbers: [],
+    randomNumberOfStars: Game.randomNumber(),
+    usedNumbers: [],
+    answerIsCorrect: null,
+    redraws: 5,
+    doneStatus: null
   };
+
+  resetGame = () => this.setState(Game.initialState());
 
   selectNumber = (clickedNumber) => {
     if(this.state.selectedNumbers.indexOf(clickedNumber) >= 0) { return }
@@ -109,33 +150,54 @@ class Game extends Component {
     this.setState(prevState => ({
       answerIsCorrect: prevState.randomNumberOfStars === prevState.selectedNumbers.reduce((acc, n) => acc + n, 0)
     }));
-  }
+  };
 
   acceptAnswer = () => {
     this.setState(prevState => ({
       usedNumbers: prevState.usedNumbers.concat(prevState.selectedNumbers),
       selectedNumbers: [],
       answerIsCorrect: null,
-      randomNumberOfStars: 1 + Math.floor(Math.random() * 9)
-    }));
+      randomNumberOfStars: Game.randomNumber()
+    }), this.updateDoneStatus);
   };
 
   redraw = () => {
-  if(this.state.redraws === 0) {return}
-  	this.setState(prevState => ({
-    	randomNumberOfStars: 1 + Math.floor(Math.random() * 9),
-      answerIsCorrect: null,
-      selectedNumbers: [],
-      redraws: prevState.redraws - 1,
-    }));
-  }
+    if(this.state.redraws === 0) {return}
+      this.setState(prevState => ({
+        randomNumberOfStars: Game.randomNumber(),
+        answerIsCorrect: null,
+        selectedNumbers: [],
+        redraws: prevState.redraws - 1,
+      }), this.updateDoneStatus);
+  };
+
+  possibleSolutions = ({randomNumberOfStars, usedNumbers}) => {
+    const possibleNumbers = _.range(1, 10).filter(number =>
+      usedNumbers.indexOf(number) === -1
+    );
+
+    return possibleCombinationSum(possibleNumbers, randomNumberOfStars)
+  };
+
+  updateDoneStatus = () => {
+    this.setState(prevState => {
+      if (prevState.usedNumbers.length === 9) {
+        return { doneStatus: 'Done. Nice!' };
+      }
+      if (prevState.redraws === 0 && !this.possibleSolutions(prevState)) {
+        return { doneStatus: 'Game Over!' };
+      }
+    });
+  };
+
   render() {
     const {
       selectedNumbers,
       randomNumberOfStars,
       usedNumbers,
       answerIsCorrect,
-      redraws
+      redraws,
+      doneStatus
     } = this.state;
 
     return (
@@ -153,9 +215,13 @@ class Game extends Component {
           <Answer selectedNumbers={selectedNumbers} rollBackAnswer={this.rollBackAnswer}/>
         </div>
         <br />
-        <Numbers  selectedNumbers={selectedNumbers}
+        {doneStatus ?
+          <DoneFrame resetGame={this.resetGame} doneStatus={doneStatus} />
+          :
+          <Numbers  selectedNumbers={selectedNumbers}
                   selectNumber={this.selectNumber}
                   usedNumbers={usedNumbers}/>
+        }
       </div>
     );
   }

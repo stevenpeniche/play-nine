@@ -13,6 +13,10 @@ span {
   cursor: pointer;
 }
 
+button {
+  margin-bottom: 0.5rem;
+}
+
 .selected {
   background-color: #eee;
   color: #ddd;
